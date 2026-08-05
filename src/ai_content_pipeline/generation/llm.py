@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Protocol
 
@@ -10,6 +11,8 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ai_content_pipeline.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 class LLMError(RuntimeError):
@@ -27,17 +30,26 @@ class LLMClient(Protocol):
     ) -> str: ...
 
 
-class QwenLLMClient:
-    """阿里云百炼 Qwen（OpenAI 兼容模式）。"""
+class OpenAICompatibleLLMClient:
+    """OpenAI 兼容 Chat Completions 客户端（DeepSeek / 阿里云百炼 Qwen 等）。"""
 
-    def __init__(self, settings: Settings) -> None:
-        if not settings.qwen_api_key:
-            raise LLMError("缺少 QWEN_API_KEY")
-        self.base_url = settings.qwen_base_url.rstrip("/")
-        self.api_key = settings.qwen_api_key
-        self.model = settings.qwen_model
-        self.timeout = settings.llm_request_timeout
-        self.max_retries = settings.llm_max_retries
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        provider: str = "openai",
+        timeout: float = 30.0,
+        max_retries: int = 3,
+    ) -> None:
+        if not api_key:
+            raise LLMError(f"缺少 {provider.upper()}_API_KEY")
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model = model
+        self.provider = provider
+        self.timeout = timeout
+        self.max_retries = max_retries
 
     @retry(
         stop=stop_after_attempt(3),
@@ -72,7 +84,35 @@ class QwenLLMClient:
             data = resp.json()
             return data["choices"][0]["message"]["content"]
         except (httpx.HTTPError, KeyError, ValueError) as exc:
-            raise LLMError(f"Qwen 调用失败: {exc}") from exc
+            raise LLMError(f"{self.provider} 调用失败: {exc}") from exc
+
+
+class QwenLLMClient(OpenAICompatibleLLMClient):
+    """阿里云百炼 Qwen（OpenAI 兼容模式）。"""
+
+    def __init__(self, settings: Settings) -> None:
+        super().__init__(
+            api_key=settings.qwen_api_key,
+            base_url=settings.qwen_base_url,
+            model=settings.qwen_model,
+            provider="qwen",
+            timeout=settings.llm_request_timeout,
+            max_retries=settings.llm_max_retries,
+        )
+
+
+class DeepSeekLLMClient(OpenAICompatibleLLMClient):
+    """DeepSeek（OpenAI 兼容模式）。"""
+
+    def __init__(self, settings: Settings) -> None:
+        super().__init__(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+            model=settings.deepseek_model,
+            provider="deepseek",
+            timeout=settings.llm_request_timeout,
+            max_retries=settings.llm_max_retries,
+        )
 
 
 class MockLLM:
@@ -213,8 +253,19 @@ class MockLLM:
 
 
 def create_llm(settings: Settings) -> LLMClient:
-    if settings.has_qwen_key:
+    if settings.llm_provider == "deepseek" and settings.deepseek_api_key:
+        logger.info("使用 DeepSeek LLM: %s", settings.deepseek_model)
+        return DeepSeekLLMClient(settings)
+    if settings.llm_provider == "qwen" and settings.has_qwen_key:
+        logger.info("使用 Qwen LLM: %s", settings.qwen_model)
         return QwenLLMClient(settings)
+    if settings.deepseek_api_key:
+        logger.info("使用 DeepSeek LLM: %s", settings.deepseek_model)
+        return DeepSeekLLMClient(settings)
+    if settings.has_qwen_key:
+        logger.info("使用 Qwen LLM: %s", settings.qwen_model)
+        return QwenLLMClient(settings)
+    logger.warning("未配置 LLM API Key，使用 MockLLM 运行演示模式")
     return MockLLM()
 
 

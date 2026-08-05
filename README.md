@@ -162,7 +162,12 @@ GitHub Actions 已配置 CI：lint + 测试 + demo 冒烟。
 复制 `.env.example` 为 `.env` 并填写：
 
 ```bash
-# LLM（阿里云百炼 OpenAI 兼容协议）
+# LLM（默认 DeepSeek，OpenAI 兼容协议）
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-xxx
+DEEPSEEK_MODEL=deepseek-chat
+
+# 阿里云百炼 Qwen（备用）
 QWEN_API_KEY=sk-xxx
 QWEN_MODEL=qwen-max
 
@@ -217,6 +222,7 @@ ai-content-pipeline/
 
 - [架构设计文档](docs/architecture.md)：每个模块的设计决策与取舍（ADR 风格）
 - [Dify 集成指南](docs/dify-integration.md)：Dify 工作流与自研管线的边界与协作
+- [真实生产迁移指南](docs/real-world-migration.md)：Mock/Demo 逐项替换为真实数据源、DeepSeek LLM、BGE、PostgreSQL、RAGAS 评测
 
 ## 设计亮点
 

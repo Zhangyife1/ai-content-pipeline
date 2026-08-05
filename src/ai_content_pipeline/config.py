@@ -39,10 +39,14 @@ class Settings:
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    # LLM
+    # LLM（OpenAI 兼容协议：DeepSeek / Qwen）
+    llm_provider: str = "deepseek"  # mock | qwen | deepseek
     qwen_api_key: str = ""
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_model: str = "qwen-max"
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
     llm_temperature: float = 0.7
     llm_max_retries: int = 3
     llm_request_timeout: float = 30.0
@@ -86,9 +90,13 @@ class Settings:
             log_level=_env("LOG_LEVEL", "INFO"),
             api_host=_env("API_HOST", "0.0.0.0"),
             api_port=_env_int("API_PORT", 8000),
+            llm_provider=_env("LLM_PROVIDER", "deepseek"),
             qwen_api_key=_env("QWEN_API_KEY"),
             qwen_base_url=_env("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             qwen_model=_env("QWEN_MODEL", "qwen-max"),
+            deepseek_api_key=_env("DEEPSEEK_API_KEY"),
+            deepseek_base_url=_env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+            deepseek_model=_env("DEEPSEEK_MODEL", "deepseek-chat"),
             llm_temperature=_env_float("LLM_TEMPERATURE", 0.7),
             llm_max_retries=_env_int("LLM_MAX_RETRIES", 3),
             llm_request_timeout=_env_float("LLM_REQUEST_TIMEOUT", 30.0),
@@ -120,4 +128,3 @@ def ensure_data_dir() -> Path:
     data_dir = Path("data")
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
-
