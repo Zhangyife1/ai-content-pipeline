@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# 自动读取项目根目录 .env（已被 gitignore，不会上传 GitHub）
+load_dotenv()
+
 
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)

@@ -50,6 +50,9 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat      # 推理场景可换 deepseek-reasoner
 ```
 
+密钥安全：`DEEPSEEK_API_KEY` 只写入本地 `.env`（已被 gitignore，不会上传 GitHub），
+程序自动加载；CI 使用 GitHub Actions Secrets；生产使用云密钥管理服务注入环境变量。
+
 验证：
 
 ```bash
@@ -148,4 +151,3 @@ python scripts/evaluate_ragas.py --run-ragas --dataset data/ragas_dataset.jsonl
 | Context Recall（上下文召回率） | 答案所需信息是否被检索到 | 分块策略、Embedding 模型、HyDE 开关、BM25 权重 |
 
 建议每周跑一次 100 问评测集，把低分样本回流到 Prompt A/B 与知识库补全，形成数据驱动的优化闭环（对应仓库 Roadmap 中的 RAGAS 项）。
-

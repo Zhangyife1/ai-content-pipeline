@@ -195,6 +195,15 @@ Docker Compose 一键启动（API + Worker + 调度器 + Redis + PostgreSQL）�
 docker compose up --build
 ```
 
+## 密钥与安全
+
+- **API Key 绝不进入仓库**：`DEEPSEEK_API_KEY` / `QWEN_API_KEY` 只放在本地 `.env`、环境变量或云密钥管理服务中。
+- `.env` 已被 `.gitignore` 忽略，程序启动时会自动读取（`python-dotenv`）。使用方法：复制 `.env.example` 为 `.env`，填入真实密钥，无需改代码。
+- CI 需要密钥时，在 GitHub 仓库 `Settings → Secrets and variables → Actions` 中配置，工作流里用 `${{ secrets.DEEPSEEK_API_KEY }}` 引用，禁止硬编码。
+- 生产环境：使用云厂商 Secret Manager（阿里云 KMS/凭据管家）或 ECS/Docker 环境变量注入，`docker-compose.yml` 已通过 `env_file: .env` 支持本地编排。
+- 仓库已内置 CI 密钥扫描（`ci.yml`），一旦检测到真实密钥格式会直接让流水线失败。
+- 若怀疑密钥泄露：立即在 DeepSeek / 百炼控制台吊销并重新生成，然后轮换 `.env`。
+
 ## 项目结构
 
 ```text

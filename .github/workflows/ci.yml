@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Secret scan
+        run: |
+          if grep -RInE "DEEPSEEK_API_KEY=sk-[A-Za-z0-9]{8,}|QWEN_API_KEY=sk-[A-Za-z0-9]{8,}|ghp_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9]{24,}" \
+            --exclude-dir=.git --exclude-dir=data --exclude=.env.example .; then
+            echo "::error::Potential secret detected in repository"
+            exit 1
+          fi
+          echo "No secrets found"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
