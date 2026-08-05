@@ -1,6 +1,8 @@
 # AI 内容生产管线（AI Content Pipeline）
 
-一套面向 **AI 增长工程师 / 高级 AI 开发工程师** 面试与实战的端到端内容生产系统：热点抓取 → AI 生成 → 人工审核 → 多渠道发布 → 数据回流闭环，并内置 RAG 多轮客服（Function Calling 业务闭环）与 GEO 工程化资产。项目基于真实生产架构抽象而来，核心代码零外部服务即可运行，生产组件通过可选依赖平滑切换。
+端到端内容生产系统：
+热点抓取 → AI 生成 → 人工审核 → 多渠道发布 → 数据回流闭环，并内置 RAG 多轮客服（Function Calling 业务闭环）与 GEO 工程化资产。
+项目基于真实生产架构抽象而来，核心代码零外部服务即可运行，生产组件通过可选依赖平滑切换。
 
 [![CI](https://github.com/Zhangyife1/ai-content-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhangyife1/ai-content-pipeline/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB)](https://www.python.org/)
@@ -215,10 +217,8 @@ ai-content-pipeline/
 
 - [架构设计文档](docs/architecture.md)：每个模块的设计决策与取舍（ADR 风格）
 - [Dify 集成指南](docs/dify-integration.md)：Dify 工作流与自研管线的边界与协作
-- [AI 增长工程师面试指南](docs/interview-guide.md)：20+ 高频面试题与回答思路
-- [简历优化建议](docs/resume-optimization.md)：Coze Bot 如何包装为 RAG 系统、简历措辞与项目成果对齐
 
-## 设计亮点（面试速记）
+## 设计亮点
 
 1. **双轨存储**：向量库只做近似检索，PostgreSQL 做全文、元数据与版本历史，避免“索引卡当档案柜”。
 2. **增量更新**：BLAKE3 内容指纹比对 + `is_active/valid_from/valid_to` 时序模式，支持事实追溯。
