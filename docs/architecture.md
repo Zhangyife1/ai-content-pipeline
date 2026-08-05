@@ -86,6 +86,24 @@ flowchart LR
 
 **理由**：面试演示、CI、教学需要零外部依赖可复现；接口与生产实现完全一致，切换只改配置。这本身也证明了架构的可测试性。
 
+### ADR-10：客服系统为什么复用内容管线的检索层？
+
+**决策**：`ChatEngine` 直接复用 `HydeRetriever` + 混合检索 + Prompt Registry，不单独建一套问答系统。
+
+**理由**：官网 FAQ 与内容管线的知识库同源，复用检索层保证口径一致、知识更新一次生效；多轮记忆只做「查询改写 + 最近 N 轮历史」，避免把对话历史全量塞进上下文。
+
+### ADR-11：为什么用 Function Calling 而不是让 LLM 自由发挥？
+
+**决策**：订单查询/下单固定为工具 Schema（`query_order` / `create_order`），意图命中后由代码执行并校验参数。
+
+**理由**：涉及交易的操作必须可审计、可重试、参数可校验；LLM 只负责意图与参数抽取，执行权留在业务代码。`MockOrderService` 与 `HttpOrderService` 接口一致，演示与真实对接只差一个配置。
+
+### ADR-12：为什么 GEO 资产由系统自动生成？
+
+**决策**：发布成功后自动生成/更新 Sitemap，并产出 Article/FAQ/Organization JSON-LD。
+
+**理由**：人工维护 Sitemap 会漏页、过期；结构化数据与内容同生命周期，生成时即可产出，避免二次人工工作。
+
 ## 3. 数据流（一次完整发布）
 
 ```mermaid
@@ -116,6 +134,32 @@ sequenceDiagram
 
 ## 4. 扩展点
 
+### 客服交互闭环
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant C as ChatEngine
+    participant R as 混合检索
+    participant F as FunctionCallRouter
+    participant O as 订单服务
+
+    U->>C: 专业版多少钱？
+    C->>R: 检索 FAQ
+    R-->>C: Top-K chunks
+    C-->>U: 299 元/月
+    U->>C: 查订单 SO20260801001
+    C->>F: query_order
+    F->>O: 查询
+    O-->>F: 订单信息
+    F-->>C: 结构化结果
+    C-->>U: 已发货，预计 08-08 送达
+    U->>C: 帮我下单
+    C->>F: create_order
+    F-->>C: 新订单号
+    C-->>U: 订单已创建
+```
+
 | 场景 | 修改位置 |
 | --- | --- |
 | 新增数据源 | 实现 `DocumentConnector`，注册到 `ConnectorRegistry` |
@@ -124,4 +168,3 @@ sequenceDiagram
 | 新增发布平台 | 实现 `PlatformAdapter`，注册到 `AdapterRegistry` |
 | 增加质检规则 | 扩展 `FormatChecker` / `FactChecker` |
 | 换调度后端 | 实现 `PublishScheduler`（Redis Stream/RabbitMQ） |
-

@@ -78,6 +78,28 @@ DEFAULT_PROMPTS: list[PromptTemplate] = [
         variables=["query"],
         output_schema={"type": "string"},
     ),
+    PromptTemplate(
+        prompt_id="chat_answer",
+        version="1.0.0",
+        template=(
+            "你是官网智能客服。请基于以下知识库上下文回答用户问题：\n"
+            "用户问题：{question}\n知识库上下文：\n{context}\n"
+            "要求：1. 只依据上下文回答，不要编造；2. 上下文不足时明确说明并引导联系人工；"
+            "3. 回答简洁（200 字以内）。"
+        ),
+        variables=["question", "context"],
+        output_schema={"type": "string"},
+    ),
+    PromptTemplate(
+        prompt_id="query_rewrite",
+        version="1.0.0",
+        template=(
+            "对话历史：\n{history}\n当前问题：{message}\n"
+            "请把当前问题改写为可独立检索的查询，只输出改写后的查询文本。"
+        ),
+        variables=["history", "message"],
+        output_schema={"type": "string"},
+    ),
 ]
 
 

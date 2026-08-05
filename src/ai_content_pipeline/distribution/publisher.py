@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from ai_content_pipeline.distribution.adapters import AdapterRegistry, PublishError
 from ai_content_pipeline.distribution.scheduler import PublishScheduler
 from ai_content_pipeline.models import GeneratedArticle, PublishStatus, PublishTask
+from ai_content_pipeline.observability.metrics import Metrics
 from ai_content_pipeline.storage.repositories import ContentRepository
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,13 @@ class Publisher:
         scheduler: PublishScheduler,
         repository: ContentRepository,
         max_retries: int = 3,
+        metrics: Metrics | None = None,
     ) -> None:
         self.adapters = adapters
         self.scheduler = scheduler
         self.repository = repository
         self.max_retries = max_retries
+        self.metrics = metrics
 
     def schedule(self, content: GeneratedArticle, platform: str, publish_at: datetime | None = None) -> PublishTask:
         if platform not in self.adapters.platforms():
@@ -76,10 +79,14 @@ class Publisher:
             )
             task.status = PublishStatus.PUBLISHED
             task.result = result
+            if self.metrics is not None:
+                self.metrics.record_publish(True)
         except PublishError as exc:
             await self._handle_failure(task, exc)
         except Exception as exc:  # 网络/平台异常统一走重试
             await self._handle_failure(task, PublishError(str(exc), "network"))
+        if self.metrics is not None and task.status in (PublishStatus.FAILED, PublishStatus.FAILED_PERMANENT):
+            self.metrics.record_publish(False)
         self.repository.save_publish_log(task)
         self.scheduler.ack(task.task_id)
         if task.status == PublishStatus.FAILED:

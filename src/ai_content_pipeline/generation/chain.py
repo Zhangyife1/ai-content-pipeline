@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 
 from pydantic import ValidationError
 
@@ -21,6 +22,7 @@ from ai_content_pipeline.models import (
     RetrievalResult,
     SeoMeta,
 )
+from ai_content_pipeline.observability.metrics import Metrics
 from ai_content_pipeline.prompts.registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -37,11 +39,13 @@ class ContentChain:
         retriever: HydeRetriever,
         prompts: PromptRegistry,
         max_attempts: int = 3,
+        metrics: Metrics | None = None,
     ) -> None:
         self.llm = llm
         self.retriever = retriever
         self.prompts = prompts
         self.max_attempts = max_attempts
+        self.metrics = metrics
 
     def retrieve_context(self, topic: str, top_k: int = 5) -> list[RetrievalResult]:
         return self.retriever.search(topic, top_k=top_k)
@@ -179,27 +183,33 @@ class ContentChain:
         audience: str = "目标用户",
     ) -> GeneratedArticle:
         """执行完整文章生成链并组装输出（正文/摘要/FAQ/SEO）。"""
-        context = self.retrieve_context(topic, top_k=5)
-        outline = self.generate_outline(
-            topic=topic,
-            platform=platform,
-            style=style,
-            word_count=word_count,
-            audience=audience,
-            context=context,
-        )
-        sections = self._write_all_sections(topic, outline, context, style)
-        body = "\n\n".join(sections)
-        summary = self.generate_summary(outline.title, body)
-        faq = self.generate_faq(context)
-        seo = self.generate_seo(outline.title, summary)
-        article = GeneratedArticle(
-            title=outline.title,
-            body=body,
-            summary=summary,
-            faq_pairs=faq,
-            seo=seo,
-            prompt_version=self.prompts.get_active("outline").version,
-        )
+        started = time.perf_counter()
+        try:
+            context = self.retrieve_context(topic, top_k=5)
+            outline = self.generate_outline(
+                topic=topic,
+                platform=platform,
+                style=style,
+                word_count=word_count,
+                audience=audience,
+                context=context,
+            )
+            sections = self._write_all_sections(topic, outline, context, style)
+            body = "\n\n".join(sections)
+            summary = self.generate_summary(outline.title, body)
+            faq = self.generate_faq(context)
+            seo = self.generate_seo(outline.title, summary)
+            article = GeneratedArticle(
+                title=outline.title,
+                body=body,
+                summary=summary,
+                faq_pairs=faq,
+                seo=seo,
+                prompt_version=self.prompts.get_active("outline").version,
+                status="review",
+            )
+        finally:
+            if self.metrics is not None:
+                self.metrics.record_generation(time.perf_counter() - started)
         logger.info("文章生成完成 content_id=%s title=%s", article.content_id, article.title)
         return article

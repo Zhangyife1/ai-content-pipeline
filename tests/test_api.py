@@ -91,7 +91,30 @@ class ApiSmokeTests(unittest.TestCase):
         processed = process_resp.json()
         self.assertTrue(any(t["task_id"] == task_id and t["status"] == "published" for t in processed))
 
+    def test_review_flow(self):
+        gen_resp = self.client.post(
+            "/api/v1/generation/articles",
+            json={"topic": "RAG 客服落地实践", "word_count": 800},
+        )
+        content_id = gen_resp.json()["content_id"]
+        pending = self.client.get("/api/v1/review/pending").json()
+        self.assertTrue(any(p["content_id"] == content_id for p in pending))
+        approve = self.client.post(f"/api/v1/review/{content_id}/approve")
+        self.assertEqual(approve.json()["status"], "approved")
+
+    def test_chat_and_seo_and_metrics(self):
+        chat = self.client.post("/api/v1/chat", json={"message": "帮我查一下订单 SO20260801001"}).json()
+        self.assertEqual(chat["tools_called"][0]["name"], "query_order")
+
+        sitemap = self.client.get("/api/v1/seo/sitemap.xml")
+        self.assertEqual(sitemap.status_code, 200)
+        self.assertIn("<urlset", sitemap.text)
+
+        metrics = self.client.get("/api/v1/metrics").json()
+        self.assertIn("generation_count", metrics)
+        self.assertIn("publish_success_rate", metrics)
+        self.assertGreaterEqual(metrics["publish_success_rate"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
-

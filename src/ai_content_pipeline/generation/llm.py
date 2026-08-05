@@ -115,6 +115,17 @@ class MockLLM:
             )
         if prompt_id == "hyde":
             return f"假设文档：{topic} 的核心内容包括定义、工作原理、实施步骤、常见问题与效果指标。"
+        if prompt_id == "chat_answer":
+            match = re.search(r"(?m)^用户问题[:：]\s*([^\n]+)", user)
+            question = match.group(1).strip() if match else topic
+            return (
+                f"根据知识库，关于「{question}」：星尘 AI 内容平台支持知识库投喂、"
+                f"三层质检与多渠道发布；专业版价格为 299 元/月，包含每月 5000 次生成。"
+                f"如果您的问题在知识库中未覆盖，可以联系在线人工客服。"
+            )
+        if prompt_id == "query_rewrite":
+            match = re.search(r"(?m)^当前问题[:：]\s*([^\n]+)", user)
+            return match.group(1).strip() if match else topic
         return f"（Mock 输出）关于{topic}：需要配置真实 LLM 后生成高质量内容。"
 
     @staticmethod
@@ -126,6 +137,9 @@ class MockLLM:
         if match:
             return match.group(1).strip()
         match = re.search(r"标题[:：]\s*([^\n]+)", user)
+        if match:
+            return match.group(1).strip()
+        match = re.search(r"查询[:：]\s*([^\n]+)", user)
         if match:
             return match.group(1).strip()
         first_line = user.strip().splitlines()[0] if user.strip() else "AI 内容生产管线"

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ai_content_pipeline import __version__
 from ai_content_pipeline.api.deps import get_services
-from ai_content_pipeline.api.routers import generation, ingestion, publish, quality, retrieval
+from ai_content_pipeline.api.routers import chat, generation, ingestion, metrics, publish, quality, retrieval, review, seo
 
 logging.basicConfig(level=logging.INFO)
 
@@ -39,9 +39,12 @@ app.include_router(retrieval.router)
 app.include_router(generation.router)
 app.include_router(quality.router)
 app.include_router(publish.router)
+app.include_router(chat.router)
+app.include_router(review.router)
+app.include_router(seo.router)
+app.include_router(metrics.router)
 
 
 @app.get("/healthz", tags=["运维"])
 def healthz() -> dict:
     return {"status": "ok", "version": __version__}
-

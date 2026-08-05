@@ -141,6 +141,25 @@ class ContentRepository:
         with self._session() as session:
             return session.get(ContentRecord, content_id)
 
+    def list_contents_by_status(self, status: str, limit: int = 100) -> list[ContentRecord]:
+        with self._session() as session:
+            rows = session.scalars(
+                select(ContentRecord)
+                .where(ContentRecord.status == status)
+                .order_by(ContentRecord.created_at)
+                .limit(limit)
+            ).all()
+            return list(rows)
+
+    def update_content_status(self, content_id: str, status: str) -> bool:
+        with self._session() as session:
+            record = session.get(ContentRecord, content_id)
+            if record is None:
+                return False
+            record.status = status
+            session.commit()
+            return True
+
     # ---- 发布日志 ----
     def save_publish_log(self, task: PublishTask) -> None:
         with self._session() as session:
@@ -178,4 +197,3 @@ class ContentRepository:
                     )
                 )
             session.commit()
-

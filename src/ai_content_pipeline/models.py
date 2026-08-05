@@ -148,6 +148,41 @@ class PublishTask(BaseModel):
     created_at: datetime = Field(default_factory=_now)
 
 
+class ReviewStatus(str, Enum):
+    PENDING_REVIEW = "review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class ChatMessage(BaseModel):
+    role: str  # user | assistant | system
+    content: str
+    created_at: datetime = Field(default_factory=_now)
+
+
+class ToolCall(BaseModel):
+    name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatTurn(BaseModel):
+    session_id: str
+    user_message: str
+    bot_reply: str
+    tools_called: list[ToolCall] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_now)
+
+
+class OrderInfo(BaseModel):
+    order_id: str
+    status: str  # paid | shipped | delivered | refunded
+    amount: float
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_now)
+    eta: str | None = None
+
+
 class PromptTemplate(BaseModel):
     prompt_id: str
     version: str = "1.0.0"

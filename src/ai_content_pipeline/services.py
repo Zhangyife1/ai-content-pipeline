@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from ai_content_pipeline.config import Settings, ensure_data_dir, get_settings
+from ai_content_pipeline.conversation.chat import ChatEngine
+from ai_content_pipeline.conversation.function_calling import FunctionCallRouter
+from ai_content_pipeline.conversation.session import SessionStore
 from ai_content_pipeline.distribution.adapters import default_registry as default_adapter_registry
 from ai_content_pipeline.distribution.publisher import Publisher
 from ai_content_pipeline.distribution.scheduler import InMemoryScheduler, RedisZSetScheduler
@@ -14,7 +17,9 @@ from ai_content_pipeline.generation.hyde import HydeRetriever
 from ai_content_pipeline.generation.llm import create_llm
 from ai_content_pipeline.ingestion.embeddings import create_embedder
 from ai_content_pipeline.ingestion.pipeline import IngestionPipeline
+from ai_content_pipeline.ingestion.hot_topics import HotTopicAggregator, MockHotTopicSource
 from ai_content_pipeline.ingestion.vector_store import HybridRetriever, NumpyVectorStore
+from ai_content_pipeline.observability.metrics import get_metrics
 from ai_content_pipeline.prompts.registry import PromptRegistry
 from ai_content_pipeline.quality.duplicate_check import DuplicateChecker
 from ai_content_pipeline.quality.fact_check import FactChecker
@@ -38,6 +43,9 @@ class Services:
     content_chain: ContentChain
     quality_checker: QualityChecker
     publisher: Publisher
+    chat_engine: ChatEngine
+    hot_topics: HotTopicAggregator
+    metrics: Any
 
     def sync_retrieval_corpus(self) -> None:
         """把关系库中的 active chunks 同步到检索器（demo 单机场景）。"""
@@ -70,7 +78,8 @@ def build_services(settings: Settings | None = None) -> Services:
     llm = create_llm(settings)
     prompts = PromptRegistry(repository)
     hyde = HydeRetriever(hybrid, llm, prompts)
-    chain = ContentChain(llm=llm, retriever=hyde, prompts=prompts)
+    metrics = get_metrics()
+    chain = ContentChain(llm=llm, retriever=hyde, prompts=prompts, metrics=metrics)
 
     duplicate_checker = DuplicateChecker(threshold=settings.simhash_duplicate_threshold)
     fact_checker = FactChecker(retriever=hybrid, require_evidence=settings.fact_check_require_evidence)
@@ -88,7 +97,16 @@ def build_services(settings: Settings | None = None) -> Services:
         scheduler=scheduler,
         repository=repository,
         max_retries=settings.publish_max_retries,
+        metrics=metrics,
     )
+    chat_engine = ChatEngine(
+        retriever=hyde,
+        llm=llm,
+        prompts=prompts,
+        sessions=SessionStore(),
+        tools=FunctionCallRouter(),
+    )
+    hot_topics = HotTopicAggregator([MockHotTopicSource()])
 
     services = Services(
         settings=settings,
@@ -103,6 +121,9 @@ def build_services(settings: Settings | None = None) -> Services:
         content_chain=chain,
         quality_checker=quality,
         publisher=publisher,
+        chat_engine=chat_engine,
+        hot_topics=hot_topics,
+        metrics=metrics,
     )
     services.sync_retrieval_corpus()
     return services
