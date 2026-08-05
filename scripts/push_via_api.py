@@ -281,6 +281,7 @@ def push(force: bool = False) -> int:
 
     print("[5/6] 按顺序创建 commits")
     commit_map: dict[str, str] = {}
+    first_new_commit = True
     for local_sha in commits:
         if local_sha in known_commits:
             commit_map[local_sha] = known_commits[local_sha]
@@ -290,13 +291,15 @@ def push(force: bool = False) -> int:
         message = git_text(["log", "-1", "--pretty=%B", local_sha])
         parent_shas = git_text(["log", "-1", "--pretty=%P", local_sha]).split()
         parents = []
-        for parent in parent_shas:
-            if parent in commit_map:
-                parents.append(commit_map[parent])
-            elif parent in known_commits:
-                parents.append(known_commits[parent])
-        if not parents and bootstrap_sha:
+        if first_new_commit and bootstrap_sha:
+            # 新链起点挂在当前远端头（等效 rebase），保证 force=False 也能快进
             parents = [bootstrap_sha]
+        else:
+            for parent in parent_shas:
+                if parent in commit_map:
+                    parents.append(commit_map[parent])
+                elif parent in known_commits:
+                    parents.append(known_commits[parent])
         payload: dict = {"message": message, "tree": remote_tree}
         if parents:
             payload["parents"] = parents
@@ -305,6 +308,7 @@ def push(force: bool = False) -> int:
             print(f"  commit 创建失败: {local_sha} HTTP {code} {str(data)[:200]}", file=sys.stderr)
             return 10
         commit_map[local_sha] = data["sha"]
+        first_new_commit = False
         print(f"  {local_sha[:8]} -> {data['sha'][:8]} ({message.splitlines()[0][:50]})")
 
     final_sha = commit_map[head]
