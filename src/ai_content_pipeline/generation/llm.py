@@ -27,6 +27,7 @@ class LLMClient(Protocol):
         prompt_id: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        json_mode: bool = False,
     ) -> str: ...
 
 
@@ -63,6 +64,7 @@ class OpenAICompatibleLLMClient:
         prompt_id: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        json_mode: bool = False,
     ) -> str:
         payload = {
             "model": self.model,
@@ -73,6 +75,8 @@ class OpenAICompatibleLLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
         try:
             resp = httpx.post(
                 f"{self.base_url}/chat/completions",
@@ -125,6 +129,7 @@ class MockLLM:
         prompt_id: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        json_mode: bool = False,
     ) -> str:
         topic = self._extract_topic(user)
         if prompt_id == "outline":

@@ -8,6 +8,10 @@ from pathlib import Path
 os.environ["USE_DETERMINISTIC_EMBEDDINGS"] = "true"
 os.environ["RETRIEVAL_THRESHOLD"] = "0.25"
 os.environ["PUBLISH_MODE"] = "mock"
+# 测试环境强制 Mock LLM，避免真实 API 调用（耗时且消耗额度）
+os.environ["LLM_PROVIDER"] = "mock"
+os.environ["DEEPSEEK_API_KEY"] = ""
+os.environ["QWEN_API_KEY"] = ""
 _tmp_dir = tempfile.mkdtemp(prefix="acp_api_")
 os.environ["DATABASE_URL"] = f"sqlite:///{Path(_tmp_dir) / 'api_test.db'}"
 

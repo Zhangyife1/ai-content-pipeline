@@ -32,6 +32,95 @@ class GenerationError(RuntimeError):
     pass
 
 
+def _coerce_int(value, default: int) -> int:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return default
+
+
+def _coerce_str_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [part.strip() for part in re.split(r"[;；,，、]", value) if part.strip()]
+    if isinstance(value, (list, tuple)):
+        out: list[str] = []
+        for item in value:
+            if isinstance(item, (list, tuple)):
+                out.extend(str(x) for x in item)
+            else:
+                out.append(str(item))
+        return out
+    return []
+
+
+def normalize_outline(raw: dict, topic: str) -> dict:
+    """对 LLM 输出的 JSON 做字段归一化，兼容 heading/h2/source_ids 等常见别名。"""
+    sections = raw.get("sections") or raw.get("outline") or []
+    normalized_sections = []
+    for section in sections if isinstance(sections, list) else []:
+        if not isinstance(section, dict):
+            continue
+        title = (
+            section.get("title")
+            or section.get("heading")
+            or section.get("h2")
+            or section.get("headline")
+            or section.get("name")
+            or ""
+        )
+        key_points = _coerce_str_list(
+            section.get("key_points")
+            or section.get("keyPoints")
+            or section.get("points")
+            or section.get("bullets")
+            or section.get("key_point")
+        )
+        word_count = _coerce_int(
+            section.get("word_count")
+            or section.get("wordCount")
+            or section.get("words")
+            or section.get("length"),
+            500,
+        )
+        source_refs = _coerce_str_list(
+            section.get("source_refs")
+            or section.get("sourceRefs")
+            or section.get("source_ids")
+            or section.get("reference")
+            or section.get("references")
+        )
+        if not title or not key_points:
+            continue
+        normalized_sections.append(
+            {
+                "title": str(title).strip(),
+                "key_points": key_points,
+                "word_count": word_count,
+                "source_refs": source_refs,
+            }
+        )
+    total = _coerce_int(
+        raw.get("total_word_count") or raw.get("totalWordCount") or raw.get("total_words"),
+        sum(s["word_count"] for s in normalized_sections) or 1500,
+    )
+    title = (
+        raw.get("title")
+        or raw.get("headline")
+        or raw.get("topic")
+        or f"{topic}完整指南"
+    )
+    return {
+        "title": str(title).strip(),
+        "sections": normalized_sections,
+        "total_word_count": total,
+    }
+
+
 class ContentChain:
     def __init__(
         self,
@@ -77,9 +166,10 @@ class ContentChain:
                 user=self.prompts.render("outline", variables),
                 prompt_id="outline",
                 temperature=0.5,
+                json_mode=True,
             )
             try:
-                return ArticleOutline.model_validate(extract_json(raw))
+                return ArticleOutline.model_validate(normalize_outline(extract_json(raw), topic))
             except (ValidationError, ValueError) as exc:
                 last_error = exc
                 logger.warning("大纲 Schema 校验失败，第 %d 次重试: %s", attempt, exc)

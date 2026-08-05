@@ -1,6 +1,7 @@
 import unittest
 
 from ai_content_pipeline.generation.chain import ContentChain
+from ai_content_pipeline.generation.chain import normalize_outline
 from ai_content_pipeline.generation.llm import MockLLM, extract_json
 from ai_content_pipeline.ingestion.embeddings import DeterministicEmbedder
 from ai_content_pipeline.ingestion.vector_store import HybridRetriever, NumpyVectorStore
@@ -14,6 +15,35 @@ class MockLLMTests(unittest.TestCase):
         data = extract_json(raw)
         self.assertIn("title", data)
         self.assertGreaterEqual(len(data["sections"]), 3)
+
+
+class OutlineNormalizeTests(unittest.TestCase):
+    def test_deepseek_style_heading_and_int_refs(self):
+        raw = {
+            "title": "如何购买二代机器人",
+            "sections": [
+                {
+                    "heading": "引言：购买前需要了解什么",
+                    "key_points": ["适用场景", "预算"],
+                    "word_count": "500",
+                    "reference": [0, 1],
+                },
+                {
+                    "h2": "购买流程详解",
+                    "points": "联系销售；签订合同；安排交付",
+                    "words": 600,
+                    "source_ids": [2],
+                },
+            ],
+            "total_word_count": "1100",
+        }
+        normalized = normalize_outline(raw, "二代机器人")
+        self.assertEqual(normalized["title"], "如何购买二代机器人")
+        self.assertEqual(normalized["sections"][0]["title"], "引言：购买前需要了解什么")
+        self.assertEqual(normalized["sections"][0]["source_refs"], ["0", "1"])
+        self.assertEqual(normalized["sections"][1]["title"], "购买流程详解")
+        self.assertEqual(normalized["sections"][1]["key_points"], ["联系销售", "签订合同", "安排交付"])
+        self.assertEqual(normalized["total_word_count"], 1100)
 
 
 class ContentChainTests(unittest.TestCase):
@@ -53,4 +83,3 @@ class ContentChainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -19,7 +19,11 @@ DEFAULT_PROMPTS: list[PromptTemplate] = [
             "参考资料：\n{context}\n"
             "要求：\n1. 标题需包含核心关键词，具备传播性；\n"
             "2. 每个 H2 小节需标注写作要点和参考来源编号；\n"
-            "3. 避免与已有内容重复的结构；\n4. 输出 JSON，字段为 title/sections/total_word_count。"
+            "3. 避免与已有内容重复的结构；\n"
+            "4. 只输出 JSON 对象，字段名必须严格使用：title、sections、total_word_count；\n"
+            "   每个 section 必须严格使用：title、key_points、word_count、source_refs；\n"
+            "   source_refs 是字符串数组（如 [\"0\", \"2\"]），key_points 是字符串数组，word_count 是整数。\n"
+            "JSON 示例：{\"title\":\"...\",\"sections\":[{\"title\":\"...\",\"key_points\":[\"...\"],\"word_count\":500,\"source_refs\":[\"0\"]}],\"total_word_count\":2000}"
         ),
         variables=["audience", "content_type", "topic", "platform", "style", "word_count", "context"],
         output_schema={
