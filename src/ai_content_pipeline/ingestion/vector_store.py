@@ -265,5 +265,10 @@ class HybridRetriever:
 def _tokenize(text: str) -> list[str]:
     import re
 
-    tokens = re.findall(r"[\w\u4e00-\u9fff]+", text.lower())
+    words = re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]+", text.lower())
+    tokens = list(words)
+    for word in words:
+        if len(word) > 1 and re.fullmatch(r"[\u4e00-\u9fff]+", word):
+            # 中文字符二元组，弥补整句分词导致的检索空洞
+            tokens.extend(word[i : i + 2] for i in range(len(word) - 1))
     return tokens

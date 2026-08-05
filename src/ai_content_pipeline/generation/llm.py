@@ -95,11 +95,12 @@ class MockLLM:
         if prompt_id == "summary":
             return f"本文围绕「{topic}」系统梳理了核心概念、实践路径与落地建议，帮助读者快速建立完整认知并直接用于业务实践。"
         if prompt_id == "faq":
+            subject = self._extract_faq_subject(user) or topic
             return json.dumps(
                 [
-                    {"question": f"{topic}是什么？", "answer": f"{topic} 是内容管线中的核心能力，用于统一生产与分发。"},
-                    {"question": f"如何落地{topic}？", "answer": "建议先梳理知识库，再逐步接入生成与质检流程。"},
-                    {"question": f"{topic}的效果如何衡量？", "answer": "关注生成质量、发布成功率与内容转化率三类指标。"},
+                    {"question": f"{subject}是什么？", "answer": f"{subject} 是官网智能客服知识库中的核心内容，用于解答用户常见问题。"},
+                    {"question": f"如何使用{subject}？", "answer": "请参考知识库中的使用指南，或联系专属运维人员获取一对一指导。"},
+                    {"question": f"{subject}遇到问题怎么办？", "answer": "请联系您的专属售后/运维专员，获得远程维护或上门服务支持。"},
                 ],
                 ensure_ascii=False,
             )
@@ -142,6 +143,9 @@ class MockLLM:
         match = re.search(r"查询[:：]\s*([^\n]+)", user)
         if match:
             return match.group(1).strip()
+        match = re.search(r"当前小节[:：]\s*([^\n]+)", user)
+        if match:
+            return match.group(1).strip()
         first_line = user.strip().splitlines()[0] if user.strip() else "AI 内容生产管线"
         return first_line.strip()[:40]
 
@@ -149,6 +153,21 @@ class MockLLM:
     def _extract_section(user: str) -> str:
         match = re.search(r"当前小节[:：]\s*([^\n]+)", user)
         return match.group(1).strip() if match else "核心方案"
+
+    @staticmethod
+    def _extract_faq_subject(user: str) -> str:
+        """从 FAQ Prompt 的知识库上下文中提取主题词，避免把模板指令当问题。"""
+        for line in user.splitlines():
+            text = line.strip()
+            if (
+                len(text) >= 5
+                and "要求" not in text
+                and "输出" not in text
+                and "模拟用户" not in text
+                and "{" not in text
+            ):
+                return text[:24]
+        return ""
 
     @staticmethod
     def _slug(text: str) -> str:
